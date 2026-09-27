@@ -1,0 +1,126 @@
+version: 2
+
+models:
+  - name: dim_hospital
+    description: Current hospital dimension (latest CMS release). Contract-enforced - downstream consumers rely on this shape.
+    config:
+      contract: {enforced: true}
+    columns:
+      - {name: facility_id, data_type: varchar, constraints: [{type: not_null}], data_tests: [unique, not_null]}
+      - {name: facility_name, data_type: varchar, data_tests: [not_null]}
+      - {name: address, data_type: varchar}
+      - {name: city, data_type: varchar}
+      - {name: state, data_type: varchar, data_tests: [not_null]}
+      - {name: state_name, data_type: varchar}
+      - {name: census_region, data_type: varchar, data_tests: [not_null]}
+      - {name: zip_code, data_type: varchar}
+      - {name: county, data_type: varchar}
+      - {name: hospital_type, data_type: varchar}
+      - {name: ownership, data_type: varchar}
+      - {name: ownership_group, data_type: varchar}
+      - {name: has_emergency_services, data_type: boolean}
+      - {name: is_birthing_friendly, data_type: boolean}
+      - {name: overall_rating, data_type: integer}
+      - {name: release_date, data_type: date}
+
+  - name: dim_hospital_history
+    description: SCD Type 2 hospital history (valid_from / valid_to / is_current).
+    columns:
+      - name: hospital_version_key
+        data_tests: [unique, not_null]
+
+  - name: dim_measure
+    description: Outcome measure catalogue (domain, direction, unit).
+    columns:
+      - name: measure_id
+        data_tests: [unique, not_null]
+
+  - name: fct_measure_scores
+    description: Incremental fact. Grain = hospital x measure x release.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            columns: [facility_id, measure_id, release_date]
+    columns:
+      - name: facility_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_hospital_history')
+                field: facility_id
+              config:
+                # Orphans arise when a hospital's own row was quarantined upstream (e.g. invalid
+                # state) while its measure rows were valid. Keep the facts, warn, and only fail
+                # if it becomes systemic. The silver DQ gate tracks the orphan rate as a %.
+                warn_if: ">0"
+                error_if: ">1000"
+      - name: measure_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_measure')
+                field: measure_id
+
+  - name: fct_patient_experience
+    description: HCAHPS patient experience per hospital per release.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            columns: [facility_id, release_date]
+
+  - name: mart_hospital_scorecard
+    description: One row per active hospital combining star rating, patient experience and outcome composite.
+    columns:
+      - name: facility_id
+        data_tests: [unique, not_null]
+      - name: outcome_composite
+        data_tests:
+          - accepted_range:
+              arguments: {min_value: 0, max_value: 100}
+      - name: outcome_tier
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['High performer', 'Above average', 'Average', 'Below average', 'Low performer', 'Insufficient data']
+
+  - name: mart_state_summary
+    description: State-level rollup for the dashboard map.
+    columns:
+      - name: state
+        data_tests: [unique, not_null]
+
+  - name: mart_measure_benchmarks
+    description: National percentile benchmarks per measure per release.
+
+  - name: mart_rating_changes
+    description: Hospitals whose CMS overall rating changed between releases.
+
+unit_tests:
+  - name: scorecard_requires_minimum_rated_measures_for_composite
+    description: A hospital with fewer than 5 rated measures gets no composite and the 'Insufficient data' tier.
+    model: mart_hospital_scorecard
+    given:
+      - input: ref('fct_measure_scores')
+        rows:
+          - {facility_id: "H1", measure_id: "M1", release_date: "2026-07-01", domain: "Mortality", comparison_category: "better", performance_percentile: 90}
+          - {facility_id: "H1", measure_id: "M2", release_date: "2026-07-01", domain: "Mortality", comparison_category: "no_different", performance_percentile: 80}
+          - {facility_id: "H1", measure_id: "M3", release_date: "2026-07-01", domain: "Readmission", comparison_category: "no_different", performance_percentile: 70}
+          - {facility_id: "H1", measure_id: "M4", release_date: "2026-07-01", domain: "Readmission", comparison_category: "no_different", performance_percentile: 70}
+          - {facility_id: "H1", measure_id: "M5", release_date: "2026-07-01", domain: "Patient safety", comparison_category: "better", performance_percentile: 90}
+          - {facility_id: "H2", measure_id: "M1", release_date: "2026-07-01", domain: "Mortality", comparison_category: "worse", performance_percentile: 10}
+      - input: ref('dim_hospital')
+        rows:
+          - {facility_id: "H1", state: "CA", overall_rating: 5}
+          - {facility_id: "H2", state: "CA", overall_rating: 2}
+      - input: ref('stg_cms__hospitals')
+        rows:
+          - {facility_id: "H1", overall_rating: 4, release_date: "2026-04-01"}
+          - {facility_id: "H1", overall_rating: 5, release_date: "2026-07-01"}
+      - input: ref('fct_patient_experience')
+        rows:
+          - {facility_id: "H1", release_date: "2026-07-01", summary_star: 4}
+    expect:
+      rows:
+        - {facility_id: "H1", outcome_composite: 80.0, outcome_tier: "High performer", measures_better: 2, measures_worse: 0, rating_change: 1}
+        - {facility_id: "H2", outcome_composite: null, outcome_tier: "Insufficient data", measures_better: 0, measures_worse: 1, rating_change: null}

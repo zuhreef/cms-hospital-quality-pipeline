@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: int_hospital_versions
+    description: SCD Type 2 versions of hospital attributes derived from CMS release partitions.
+    columns:
+      - name: hospital_version_key
+        data_tests: [unique, not_null]
+  - name: int_hcahps_stars
+    description: HCAHPS survey pivoted to one row per hospital per release.
+  - name: int_measure_scores_benchmarked
+    description: Measure scores with national median and direction-aware performance percentile.
+    columns:
+      - name: performance_percentile
+        data_tests:
+          - accepted_range:
+              arguments: {min_value: 0, max_value: 100}
+
+unit_tests:
+  - name: scd2_opens_new_version_on_change_and_closes_dropped_hospitals
+    description: >
+      Hospital A keeps its attributes for two releases then its star rating
+      changes -> 2 versions. Hospital B disappears after the first release ->
+      its only version is closed at the next release and is not current.
+    model: int_hospital_versions
+    given:
+      - input: ref('stg_cms__hospitals')
+        rows:
+          - {facility_id: "A00001", facility_name: "Alpha", state: "CA", hospital_type: "Acute Care Hospitals", ownership: "Proprietary", ownership_group: "For-profit", overall_rating: 3, has_emergency_services: true, is_birthing_friendly: false, release_date: "2026-01-01"}
+          - {facility_id: "A00001", facility_name: "Alpha", state: "CA", hospital_type: "Acute Care Hospitals", ownership: "Proprietary", ownership_group: "For-profit", overall_rating: 3, has_emergency_services: true, is_birthing_friendly: false, release_date: "2026-04-01"}
+          - {facility_id: "A00001", facility_name: "Alpha", state: "CA", hospital_type: "Acute Care Hospitals", ownership: "Proprietary", ownership_group: "For-profit", overall_rating: 4, has_emergency_services: true, is_birthing_friendly: false, release_date: "2026-07-01"}
+          - {facility_id: "B00002", facility_name: "Beta", state: "TX", hospital_type: "Acute Care Hospitals", ownership: "Physician", ownership_group: "Physician-owned", overall_rating: 5, has_emergency_services: true, is_birthing_friendly: true, release_date: "2026-01-01"}
+    expect:
+      rows:
+        - {facility_id: "A00001", overall_rating: 3, valid_from: "2026-01-01", valid_to: "2026-07-01", is_current: false}
+        - {facility_id: "A00001", overall_rating: 4, valid_from: "2026-07-01", valid_to: null, is_current: true}
+        - {facility_id: "B00002", overall_rating: 5, valid_from: "2026-01-01", valid_to: "2026-04-01", is_current: false}

@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: silver
+    description: >
+      Typed, validated and de-duplicated CMS extracts produced by the PySpark
+      bronze->silver job. Stored as hive-partitioned Parquet and queried in
+      place by DuckDB (no load step).
+    meta:
+      external_location: "read_parquet('{{ env_var('DATA_DIR') }}/silver/{name}/**/*.parquet', hive_partitioning = true, union_by_name = true)"
+    tables:
+      - name: hospitals
+        description: One row per hospital per CMS release.
+      - name: measure_scores
+        description: Complications & deaths + unplanned visits measures, one row per hospital x measure x release.
+      - name: hcahps
+        description: HCAHPS patient survey results, one row per hospital x survey measure x release.

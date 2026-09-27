@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  AIRFLOW_VERSION: "3.1.8"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}" }
+      - run: pip install ruff
+      - run: ruff check .
+
+  test:
+    name: unit + integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: actions/setup-java@v4          # PySpark needs a JVM
+        with: { distribution: temurin, java-version: "17" }
+      - run: pip install -e ".[dev,dbt,dashboard]"
+      - run: pytest -v
+
+  pipeline-smoke:
+    name: full pipeline on sample data
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - run: pip install -e ".[dbt]"
+      - name: Run pipeline (bronze -> silver -> DQ -> dbt build -> publish)
+        run: hospital-pipeline run --source sample
+        env: { DATA_DIR: "${{ github.workspace }}/data" }
+      - name: Generate dbt docs
+        run: dbt docs generate --project-dir dbt --profiles-dir dbt
+        env: { DATA_DIR: "${{ github.workspace }}/data" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gold-and-dbt-docs
+          path: |
+            data/gold
+            dbt/target/index.html
+            dbt/target/catalog.json
+            dbt/target/manifest.json
+
+  airflow-dag-integrity:
+    name: Airflow DAG imports cleanly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - name: Install Airflow with official constraints + pipeline (dbt excluded - it runs in its own venv)
+        run: |
+          C="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+          pip install "apache-airflow==${AIRFLOW_VERSION}" -e . --constraint "$C"
+      - name: Load DagBag
+        env:
+          AIRFLOW__CORE__DAGS_FOLDER: ${{ github.workspace }}/airflow/dags
+          AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+        run: |
+          python - <<'PY'
+          from airflow.models.dagbag import DagBag
+          bag = DagBag(include_examples=False)
+          assert not bag.import_errors, bag.import_errors
+          dag = bag.get_dag("cms_hospital_quality")
+          print(sorted(t.task_id for t in dag.tasks))
+          assert len(dag.tasks) == 8
+          PY
+
+  docker-build:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with: { context: ., file: docker/airflow.Dockerfile, push: false, cache-from: type=gha, cache-to: "type=gha,mode=max" }
+      - uses: docker/build-push-action@v6
+        with: { context: ., file: docker/dashboard.Dockerfile, push: false }

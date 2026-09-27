@@ -1,0 +1,76 @@
+# Source datasets pulled from the CMS Provider Data Catalog (Care Compare).
+# Docs: https://data.cms.gov/provider-data/docs
+#
+# Each dataset is identified by its DKAN dataset id. The extractor pages through
+#   GET {api_base}/datastore/query/{dataset_id}/0?limit=..&offset=..
+# and checks  GET {api_base}/metastore/schemas/dataset/items/{dataset_id}
+# for the `modified` date so unchanged releases are skipped (change detection).
+
+api_base: https://data.cms.gov/provider-data/api/1
+page_size: 1500          # CMS caps a single datastore page at 1500 rows
+request_timeout_s: 60
+
+datasets:
+  hospital_info:
+    dataset_id: xubh-q36u
+    title: Hospital General Information
+    grain: one row per hospital
+    primary_key: [facility_id]
+    required_columns:
+      - facility_id
+      - facility_name
+      - state
+      - hospital_type
+      - hospital_ownership
+      - emergency_services
+      - hospital_overall_rating
+
+  complications_deaths:
+    dataset_id: ynj2-r877
+    title: Complications and Deaths - Hospital
+    grain: one row per hospital x measure
+    primary_key: [facility_id, measure_id]
+    required_columns:
+      - facility_id
+      - measure_id
+      - measure_name
+      - compared_to_national
+      - denominator
+      - score
+      - lower_estimate
+      - higher_estimate
+      - start_date
+      - end_date
+
+  unplanned_visits:
+    dataset_id: 632h-zaca
+    title: Unplanned Hospital Visits - Hospital
+    grain: one row per hospital x measure
+    primary_key: [facility_id, measure_id]
+    required_columns:
+      - facility_id
+      - measure_id
+      - measure_name
+      - compared_to_national
+      - denominator
+      - score
+      - lower_estimate
+      - higher_estimate
+      - start_date
+      - end_date
+
+  hcahps:
+    dataset_id: dgck-syfz
+    title: Patient survey (HCAHPS) - Hospital
+    grain: one row per hospital x survey measure
+    primary_key: [facility_id, hcahps_measure_id]
+    required_columns:
+      - facility_id
+      - hcahps_measure_id
+      - hcahps_question
+      - patient_survey_star_rating
+      - hcahps_answer_percent
+      - number_of_completed_surveys
+      - survey_response_rate_percent
+      - start_date
+      - end_date

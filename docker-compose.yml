@@ -1,0 +1,58 @@
+# Local stack:  make up   ->  Airflow http://localhost:8080  |  Dashboard http://localhost:8501
+#
+# PIPELINE_SOURCE=api    pulls live data from data.cms.gov (default)
+# PIPELINE_SOURCE=sample uses the offline synthetic generator
+name: cms-hospital-quality
+
+x-pipeline-env: &pipeline-env
+  PROJECT_ROOT: /opt/project
+  DATA_DIR: /opt/project/data
+  PIPELINE_SOURCE: ${PIPELINE_SOURCE:-api}
+  DBT_BIN: /opt/dbt-venv/bin/dbt
+  SPARK_DRIVER_MEMORY: 2g
+
+services:
+  airflow:
+    build:
+      context: .
+      dockerfile: docker/airflow.Dockerfile
+    image: cms-hospital-quality/airflow:latest
+    command: standalone
+    user: "${AIRFLOW_UID:-50000}:0"   # on Linux set AIRFLOW_UID=$(id -u) so ./data stays writable
+    environment:
+      <<: *pipeline-env
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/project/airflow/dags
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "true"   # local demo only: no login
+      AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: "30"
+    ports: ["8080:8080"]
+    volumes:
+      - ./airflow/dags:/opt/project/airflow/dags
+      - ./dbt:/opt/project/dbt
+      - ./data:/opt/project/data
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      retries: 10
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/dashboard.Dockerfile
+    image: cms-hospital-quality/dashboard:latest
+    environment:
+      GOLD_DIR: /data/gold
+    ports: ["8501:8501"]
+    volumes:
+      - ./data:/data:ro
+
+  # One-shot run without Airflow:  docker compose run --rm pipeline
+  pipeline:
+    image: cms-hospital-quality/airflow:latest
+    profiles: ["manual"]
+    entrypoint: ["hospital-pipeline", "run"]
+    user: "${AIRFLOW_UID:-50000}:0"
+    environment: *pipeline-env
+    volumes:
+      - ./dbt:/opt/project/dbt
+      - ./data:/opt/project/data

@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: stg_cms__hospitals
+    description: Hospital attributes per release, with ownership rolled up into analysis groups.
+    columns:
+      - name: facility_id
+        data_tests: [not_null]
+      - name: state
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('state_regions')
+                field: state
+      - name: overall_rating
+        data_tests:
+          - accepted_range:
+              arguments: {min_value: 1, max_value: 5}
+      - name: ownership_group
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Non-profit', 'For-profit', 'Government', 'Physician-owned', 'Other']
+
+  - name: stg_cms__measure_scores
+    description: Outcome measures with CMS comparison text normalised to better / no_different / worse.
+    columns:
+      - name: comparison_category
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['better', 'no_different', 'worse', 'too_few_cases', 'not_available']
+      - name: measure_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('measure_catalog')
+                field: measure_id
+              config:
+                severity: warn   # new CMS measures should be catalogued, but must not block the load
+
+  - name: stg_cms__hcahps
+    description: HCAHPS patient experience survey results.
+    columns:
+      - name: star_rating
+        data_tests:
+          - accepted_range:
+              arguments: {min_value: 1, max_value: 5}
+      - name: answer_percent
+        data_tests:
+          - accepted_range:
+              arguments: {min_value: 0, max_value: 100}

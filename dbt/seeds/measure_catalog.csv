@@ -1,0 +1,35 @@
+measure_id,measure_short_name,domain,lower_is_better,unit
+COMP_HIP_KNEE,Hip/knee replacement complications,Complications,true,percent
+MORT_30_AMI,Heart attack 30-day mortality,Mortality,true,percent
+MORT_30_CABG,CABG 30-day mortality,Mortality,true,percent
+MORT_30_COPD,COPD 30-day mortality,Mortality,true,percent
+MORT_30_HF,Heart failure 30-day mortality,Mortality,true,percent
+MORT_30_PN,Pneumonia 30-day mortality,Mortality,true,percent
+MORT_30_STK,Stroke 30-day mortality,Mortality,true,percent
+Hybrid_HWM,Hospital-wide mortality (hybrid),Mortality,true,percent
+PSI_03_ULCER,Pressure ulcers,Patient safety,true,per 1000 discharges
+PSI_04_SURG_COMP,Deaths after treatable surgical complications,Patient safety,true,per 1000 discharges
+PSI_06_IAT_PTX,Collapsed lung from procedure,Patient safety,true,per 1000 discharges
+PSI_08_POST_HIP,Post-op hip fracture,Patient safety,true,per 1000 discharges
+PSI_09_POST_HEM,Post-op bleeding,Patient safety,true,per 1000 discharges
+PSI_10_POST_KIDNEY,Post-op kidney injury,Patient safety,true,per 1000 discharges
+PSI_11_POST_RESP,Post-op respiratory failure,Patient safety,true,per 1000 discharges
+PSI_12_POSTOP_PULMEMB_DVT,Post-op blood clots,Patient safety,true,per 1000 discharges
+PSI_13_POST_SEPSIS,Post-op sepsis,Patient safety,true,per 1000 discharges
+PSI_14_POSTOP_DEHIS,Wound reopening,Patient safety,true,per 1000 discharges
+PSI_15_ACC_LAC,Accidental cuts and tears,Patient safety,true,per 1000 discharges
+PSI_90,Patient safety composite (PSI 90),Patient safety,true,ratio
+READM_30_AMI,Heart attack 30-day readmission,Readmission,true,percent
+READM_30_CABG,CABG 30-day readmission,Readmission,true,percent
+READM_30_COPD,COPD 30-day readmission,Readmission,true,percent
+READM_30_HF,Heart failure 30-day readmission,Readmission,true,percent
+READM_30_HIP_KNEE,Hip/knee 30-day readmission,Readmission,true,percent
+READM_30_PN,Pneumonia 30-day readmission,Readmission,true,percent
+Hybrid_HWR,Hospital-wide readmission (hybrid),Readmission,true,percent
+EDAC_30_AMI,Heart attack excess return days,Return days,true,days per 100 discharges
+EDAC_30_HF,Heart failure excess return days,Return days,true,days per 100 discharges
+EDAC_30_PN,Pneumonia excess return days,Return days,true,days per 100 discharges
+OP_32,Unplanned visits after colonoscopy,Outpatient,true,per 1000 procedures
+OP_35_ADM,Admissions during outpatient chemo,Outpatient,true,per 100 patients
+OP_35_ED,ED visits during outpatient chemo,Outpatient,true,per 100 patients
+OP_36,Unplanned visits after outpatient surgery,Outpatient,true,ratio

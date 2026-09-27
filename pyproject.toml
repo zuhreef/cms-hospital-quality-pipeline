@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hospital-pipeline"
+version = "0.1.0"
+description = "Lakehouse pipeline for CMS hospital quality data: API -> PySpark -> dbt/DuckDB -> Streamlit"
+requires-python = ">=3.11"
+authors = [{ name = "Zarif (Reef) Nomanee" }]
+dependencies = [
+  "requests>=2.32",
+  "tenacity>=9.0",
+  "pyyaml>=6.0",
+  "pyarrow>=17",
+  "duckdb>=1.2",
+  "pyspark>=4.0,<4.2",
+]
+
+[project.optional-dependencies]
+# dbt lives in its own extra (and its own venv inside the Airflow image) because its
+# pins conflict with Airflow's constraints. The pipeline calls it via $DBT_BIN.
+dbt = ["dbt-duckdb>=1.10,<1.11"]
+dashboard = ["streamlit>=1.40", "plotly>=6.0", "pandas>=2.2"]
+dev = ["pytest>=8", "responses>=0.25", "ruff>=0.6", "pandas>=2.2"]
+
+[project.scripts]
+hospital-pipeline = "hospital_pipeline.pipeline:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = ["integration: end-to-end run of Spark + dbt on sample data (slower)"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["dbt/target", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]

@@ -1,0 +1,34 @@
+name: hospital_quality
+version: "1.0.0"
+config-version: 2
+profile: hospital_quality
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  hospital_quality:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts
+
+seeds:
+  hospital_quality:
+    +schema: reference
+    state_regions:
+      +column_types: {state: varchar, state_name: varchar, census_region: varchar, census_division: varchar}
+    measure_catalog:
+      +column_types: {measure_id: varchar, measure_short_name: varchar, domain: varchar, lower_is_better: boolean, unit: varchar}
+
+data_tests:
+  +severity: error
