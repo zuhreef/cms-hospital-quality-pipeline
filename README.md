@@ -2,8 +2,7 @@
 
 An end-to-end data engineering pipeline built on public **CMS Care Compare** data. It covers every U.S. Medicare-certified hospital's star rating, 30+ outcome measures (mortality, complications, readmissions) and the HCAHPS patient survey. The data moves from a paginated REST API through a medallion lakehouse (**bronze → PySpark silver → dbt/DuckDB gold**). It is orchestrated by **Airflow 3**, guarded by two layers of **data-quality checks**, tested in **CI**, and served to a **Streamlit dashboard** that includes a pipeline-observability page.
 
-<!-- After pushing, replace YOUR_GITHUB_USER to enable the badge -->
-<!-- ![CI](https://github.com/YOUR_GITHUB_USER/cms-hospital-quality-pipeline/actions/workflows/ci.yml/badge.svg) -->
+[![CI](https://github.com/zuhreef/cms-hospital-quality-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/zuhreef/cms-hospital-quality-pipeline/actions/workflows/ci.yml)
 
 ![National overview](docs/images/overview.png)
 
