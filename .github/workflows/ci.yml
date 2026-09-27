@@ -81,7 +81,7 @@ jobs:
           from airflow.models.dagbag import DagBag
           bag = DagBag(include_examples=False)
           assert not bag.import_errors, bag.import_errors
-          dag = bag.get_dag("cms_hospital_quality")
+          dag = bag.dags["cms_hospital_quality"]  # parsed DAG; get_dag() would need a metadata DB
           print(sorted(t.task_id for t in dag.tasks))
           assert len(dag.tasks) == 8
           PY
